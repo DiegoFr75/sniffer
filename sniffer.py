@@ -47,6 +47,7 @@ class Sniffer:
                 pass
             elif(ip_frame[next_layer] == self.p_types['UDP']):
                 udp_header = self.udp_header(packet[ip_version]['UDP'])
+                print('\n#### UDP Header ####')
                 print(udp_header)
                 pass
             elif(ip_frame[next_layer] == self.p_types['ICMTP']):
