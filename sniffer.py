@@ -14,37 +14,51 @@ class Sniffer:
         self.iniciar_sniffer()
 
     def iniciar_sniffer(self):
-        try:
-            sniff(prn = self.show_packts, store=1)
-        except Exception as e:
-            print(e)
+        # try:
+        sniff(prn = self.show_packts, store=1)
+        # except Exception as e:
+        #     print(e)
     
     def show_packts(self, packet):
-        ether_frame = self.ethernet_frame(packet)
-        ip_frame = self.ip_frame(ether_frame['ether_type'], packet)
+        try:
+            ether_frame = self.ethernet_frame(packet)
 
-        if(ip_frame['version'] == 4):
-            next_layer = 'protocol'
-            ip_version = 'IP'
-        elif(ip_frame['version'] == 6):
-            next_layer = 'next_header'
-            ip_version = 'IPv6'
-        else:
-            return ''
+            print('#### Ethernet frame ####')
+            print(ether_frame)
 
-        if(ip_frame[next_layer] == self.p_types['TCP']):
-            tcp_header = self.tcp_header(packet[ip_version]['TCP'])
+            ip_frame = self.ip_frame(ether_frame['ether_type'], packet)
+
+            print('\n#### IP frame ####')
+            print(ip_frame)
+
+            if(ip_frame['version'] == 4):
+                next_layer = 'protocol'
+                ip_version = 'IP'
+            elif(ip_frame['version'] == 6):
+                next_layer = 'next_header'
+                ip_version = 'IPv6'
+            else:
+                return ''
+
+            if(ip_frame[next_layer] == self.p_types['TCP']):
+                tcp_header = self.tcp_header(packet[ip_version]['TCP'])
+                print('\n#### TCP Header ####')
+                print(tcp_header)
+                pass
+            elif(ip_frame[next_layer] == self.p_types['UDP']):
+                udp_header = self.udp_header(packet[ip_version]['UDP'])
+                print(udp_header)
+                pass
+            elif(ip_frame[next_layer] == self.p_types['ICMTP']):
+                pass
+            elif(ip_frame[next_layer] == self.p_types['IGMTP']):
+                pass
+            elif(ip_frame[next_layer] == self.p_types['OSPF']):
+                pass
+
+        except Exception as e:
             pass
-        elif(ip_frame[next_layer] == self.p_types['UDP']):
-            udp_header = self.udp_header(packet[ip_version]['UDP'])
-            print(udp_header)
-            pass
-        elif(ip_frame[next_layer] == self.p_types['ICMTP']):
-            pass
-        elif(ip_frame[next_layer] == self.p_types['IGMTP']):
-            pass
-        elif(ip_frame[next_layer] == self.p_types['OSPF']):
-            pass
+        
 
     def ethernet_frame(self, packet):
         return {
