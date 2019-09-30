@@ -7,10 +7,16 @@ from scapy.all import *
 #     17 - UDP
 #     89 - OSPF
 
+# Ip frama protocol types
+# 1 - ICMP IPv4
+# 58 - ICMP IPv6
+# 6 - TCP
+# 17 - UDP
+
 class Sniffer:
 
     def __init__(self):
-        self.p_types = {"ICMTP": 1,"IGMTP": 2, "TCP": 6,"UDP": 17, "OSPF": 89}
+        self.p_types = {"ICMTP_ipv4": 1,"IGMTP": 2, "TCP": 6,"UDP": 17, "OSPF": 89, "ICMTP_ipv6": 58}
         self.iniciar_sniffer()
 
     def iniciar_sniffer(self):
@@ -21,15 +27,26 @@ class Sniffer:
     
     def show_packts(self, packet):
         try:
+            # print(packet.)
+            # packet.show()
+            infos = {}
             ether_frame = self.ethernet_frame(packet)
+            # print(packet['Ethernet'].show())
+            # print(packet['Ethernet'].type)
+            # packet.show()
 
-            print('#### Ethernet frame ####')
-            print(ether_frame)
+            # print('#### Ethernet frame ####')
+            # print(ether_frame)
 
             ip_frame = self.ip_frame(ether_frame['ether_type'], packet)
+            infos['IPv'] = ether_frame["ether_type"]
+            infos['dest_mac'] = ether_frame['dest_mac']
+            infos['dest_address'] = ip_frame['dest_address']
+            infos['packet_size'] = len(packet)
 
-            print('\n#### IP frame ####')
-            print(ip_frame)
+            # print('\n#### IP frame ####')
+            # print(ip_frame)
+            # print(ether_frame['ether_type'])
 
             if(ip_frame['version'] == 4):
                 next_layer = 'protocol'
@@ -40,15 +57,20 @@ class Sniffer:
             else:
                 return ''
 
+            infos['transport_protocol'] = ip_frame[next_layer]
+
+            print(infos)
+            
+
             if(ip_frame[next_layer] == self.p_types['TCP']):
                 tcp_header = self.tcp_header(packet[ip_version]['TCP'])
-                print('\n#### TCP Header ####')
-                print(tcp_header)
+                # print('\n#### TCP Header ####')
+                # print(tcp_header)
                 pass
             elif(ip_frame[next_layer] == self.p_types['UDP']):
                 udp_header = self.udp_header(packet[ip_version]['UDP'])
-                print('\n#### UDP Header ####')
-                print(udp_header)
+                # print('\n#### UDP Header ####')
+                # print(udp_header)
                 pass
             elif(ip_frame[next_layer] == self.p_types['ICMTP']):
                 pass
@@ -56,8 +78,10 @@ class Sniffer:
                 pass
             elif(ip_frame[next_layer] == self.p_types['OSPF']):
                 pass
+            # print(infos)
 
         except Exception as e:
+            # print(e)
             pass
         
 
@@ -79,7 +103,7 @@ class Sniffer:
                 "next_header": frame.nh,
                 "hop_limit": frame.hlim,
                 "source_address": frame.src,
-                "dest_addres": frame.dst            
+                "dest_address": frame.dst            
             }
         elif(ether_type ==  '0x800'):
             frame = packet['IP']
