@@ -1,4 +1,7 @@
 from scapy.all import *
+from datetime import datetime
+import pandas as pd
+import os
 
 # Protocol values
 #     1 - ICMTP
@@ -12,6 +15,7 @@ from scapy.all import *
 # 58 - ICMP IPv6
 # 6 - TCP
 # 17 - UDP
+FILE_PATH = 'data.csv'
 
 class Sniffer:
 
@@ -20,68 +24,49 @@ class Sniffer:
         self.iniciar_sniffer()
 
     def iniciar_sniffer(self):
-        # try:
-        sniff(prn = self.show_packts, store=1)
-        # except Exception as e:
-        #     print(e)
-    
-    def show_packts(self, packet):
         try:
-            # print(packet.)
-            # packet.show()
-            infos = {}
+            sniff(prn = self.save_packets, store=1)
+        except Exception as e:
+            print(e)
+    
+    def save_packets(self, packet):
+        try:
+            infos = {'IPv': None, 'source_address': None, 'dest_address': None, 'transport_protocol': None, 'packet_size': None, 'timestamp': None}
             ether_frame = self.ethernet_frame(packet)
-            # print(packet['Ethernet'].show())
-            # print(packet['Ethernet'].type)
-            # packet.show()
-
-            # print('#### Ethernet frame ####')
-            # print(ether_frame)
-
             ip_frame = self.ip_frame(ether_frame['ether_type'], packet)
-            infos['IPv'] = ether_frame["ether_type"]
-            infos['dest_mac'] = ether_frame['dest_mac']
             infos['dest_address'] = ip_frame['dest_address']
+            infos['source_address'] = ip_frame['source_address']
             infos['packet_size'] = len(packet)
 
-            # print('\n#### IP frame ####')
-            # print(ip_frame)
-            # print(ether_frame['ether_type'])
+            if not (ether_frame['ether_type'] == 0x806):
+                infos['IPv'] = ip_frame['version']
+                if(ip_frame['version'] == 4):
+                    infos['transport_protocol'] = ip_frame['protocol']
+                elif(ip_frame['version'] == 6):
+                    infos['transport_protocol'] = ip_frame['next_header']
+                else:
+                    return ''
 
-            if(ip_frame['version'] == 4):
-                next_layer = 'protocol'
-                ip_version = 'IP'
-            elif(ip_frame['version'] == 6):
-                next_layer = 'next_header'
-                ip_version = 'IPv6'
-            else:
-                return ''
-
-            infos['transport_protocol'] = ip_frame[next_layer]
-
-            print(infos)
+            else :
+                ip_version = ip_frame['ARP'].ptype
+                if ip_version == 0x86dd:
+                    infos['IPv'] = 6
+                else:
+                    infos['IPv'] = 4
             
 
-            if(ip_frame[next_layer] == self.p_types['TCP']):
-                tcp_header = self.tcp_header(packet[ip_version]['TCP'])
-                # print('\n#### TCP Header ####')
-                # print(tcp_header)
-                pass
-            elif(ip_frame[next_layer] == self.p_types['UDP']):
-                udp_header = self.udp_header(packet[ip_version]['UDP'])
-                # print('\n#### UDP Header ####')
-                # print(udp_header)
-                pass
-            elif(ip_frame[next_layer] == self.p_types['ICMTP']):
-                pass
-            elif(ip_frame[next_layer] == self.p_types['IGMTP']):
-                pass
-            elif(ip_frame[next_layer] == self.p_types['OSPF']):
-                pass
-            # print(infos)
+            
+            now = datetime.now()
+            infos['timestamp'] = datetime.timestamp(now)
+
+            dataFrame = pd.DataFrame.from_dict(infos, orient='index').T
+            # print(dataFrame)
+            dataFrame.to_csv(FILE_PATH, mode='a', header=False, index = False)
+        
 
         except Exception as e:
-            # print(e)
+            print(e)
+            print(ether_frame['ether_type'])
             pass
         
 
@@ -146,6 +131,11 @@ class Sniffer:
         }
 
 
-
 if __name__ == "__main__":
+    columns_names = ['IPv', 'source_address', 'dest_address', 'transport_protocol', 'packet_size', 'timestamp']
+    dataFrame = pd.DataFrame(columns_names).T
+
+    if not os.path.isfile(FILE_PATH):
+        dataFrame.to_csv(FILE_PATH, header = False, index=False)
+
     sniffer = Sniffer()
