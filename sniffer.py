@@ -1,6 +1,6 @@
 from scapy.all import *
 from datetime import datetime
-import pandas as pd
+# import pandas as pd
 import os, sys
 
 import sqlite3
