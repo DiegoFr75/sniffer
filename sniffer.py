@@ -21,16 +21,18 @@ class Sniffer:
 
     def __init__(self):
         self.p_types = {"ICMTP_ipv4": 1,"IGMTP": 2, "TCP": 6,"UDP": 17, "OSPF": 89, "ICMTP_ipv6": 58}
+        print("O sniffer foi iniciado!")
         self.iniciar_sniffer()
 
     def iniciar_sniffer(self):
         try:
-            sniff(prn = self.save_packets, store=1)
+            sniff(prn = self.save_packets)
         except Exception as e:
             print(e)
     
     def save_packets(self, packet):
         try:
+            # print("pacote")
             infos = {'IPv': None, 'source_address': None, 'dest_address': None, 'transport_protocol': None, 'packet_size': None, 'timestamp': None}
             ether_frame = self.ethernet_frame(packet)
             ip_frame = self.ip_frame(ether_frame['ether_type'], packet)
@@ -65,8 +67,8 @@ class Sniffer:
         
 
         except Exception as e:
-            print(e)
-            print(ether_frame['ether_type'])
+            # print(e)
+            # print(ether_frame['ether_type'])
             pass
         
 
