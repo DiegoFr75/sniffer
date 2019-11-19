@@ -1,7 +1,9 @@
 from scapy.all import *
 from datetime import datetime
 import pandas as pd
-import os
+import os, sys
+
+import sqlite3
 
 # Protocol values
 #     1 - ICMTP
@@ -16,28 +18,50 @@ import os
 # 6 - TCP
 # 17 - UDP
 FILE_PATH = 'data.csv'
+DATABASE_PATH = 'database.db'
 
 class Sniffer:
 
     def __init__(self):
         self.p_types = {"ICMTP_ipv4": 1,"IGMTP": 2, "TCP": 6,"UDP": 17, "OSPF": 89, "ICMTP_ipv6": 58}
         print("O sniffer foi iniciado!")
-        self.iniciar_sniffer()
+        self.connect_database()
+        self.start_sniffer()
 
-    def iniciar_sniffer(self):
+    def connect_database(self):
+        self.conn = sqlite3.connect(DATABASE_PATH)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS dados (
+                IPv TEXT, 
+                source_address  TEXT,
+                dest_address  TEXT,
+                source_mac TEXT,
+                dest_mac TEXT,
+                transport_protocol TEXT,
+                packet_size TEXT,
+                timestamp TEXT
+        );
+        ''')
+        
+    def start_sniffer(self):
         try:
-            sniff(prn = self.save_packets)
-        except Exception as e:
-            print(e)
+            sniff(prn = self.packetHandler)
+        except:
+            self.conn.close()
     
-    def save_packets(self, packet):
+    def packetHandler(self, packet):
         try:
-            # print("pacote")
-            infos = {'IPv': None, 'source_address': None, 'dest_address': None, 'transport_protocol': None, 'packet_size': None, 'timestamp': None}
+            infos = {'IPv': None, 'source_address': None, 'dest_address': None, 'source_mac': None, 'dest_mac': None, 'transport_protocol': None, 'packet_size': None, 'timestamp': None}
             ether_frame = self.ethernet_frame(packet)
             ip_frame = self.ip_frame(ether_frame['ether_type'], packet)
+
+            infos['source_mac'] = ether_frame["source_mac"]
+            infos['dest_mac'] = ether_frame["dest_mac"]
+
             infos['dest_address'] = ip_frame['dest_address']
             infos['source_address'] = ip_frame['source_address']
+
             infos['packet_size'] = len(packet)
 
             if not (ether_frame['ether_type'] == 0x806):
@@ -56,21 +80,29 @@ class Sniffer:
                 else:
                     infos['IPv'] = 4
             
-
-            
             now = datetime.now()
             infos['timestamp'] = datetime.timestamp(now)
+            self.save_packet(infos)
 
-            dataFrame = pd.DataFrame.from_dict(infos, orient='index').T
-            # print(dataFrame)
-            dataFrame.to_csv(FILE_PATH, mode='a', header=False, index = False)
+            # dataFrame = pd.DataFrame.from_dict(infos, orient='index').T
+            # dataFrame.to_csv(FILE_PATH, mode='a', header=False, index = False)
         
-
-        except Exception as e:
-            # print(e)
-            # print(ether_frame['ether_type'])
+        except:
             pass
-        
+    
+    def save_packet(self, data):
+        lista = [
+        data['IPv'], data['source_address'], data['dest_address'], data['source_mac'],
+        data['dest_mac'], data['transport_protocol'], 
+        data['packet_size'], data['timestamp']
+        ]
+
+        self.cursor.execute("""
+                INSERT INTO dados ('IPv', 'source_address', 'dest_address', 'source_mac', 'dest_mac', 'transport_protocol', 'packet_size', 'timestamp')
+                VALUES (?,?,?,?,?,?,?,?)
+                """, lista)
+        self.conn.commit()
+                
 
     def ethernet_frame(self, packet):
         return {
@@ -134,10 +166,15 @@ class Sniffer:
 
 
 if __name__ == "__main__":
-    columns_names = ['IPv', 'source_address', 'dest_address', 'transport_protocol', 'packet_size', 'timestamp']
-    dataFrame = pd.DataFrame(columns_names).T
+    try:
+        # columns_names = ['IPv', 'source_address', 'dest_address', 'source_mac', 'dest_mac', 'transport_protocol', 'packet_size', 'timestamp']
+        # dataFrame = pd.DataFrame(columns_names).T
 
-    if not os.path.isfile(FILE_PATH):
-        dataFrame.to_csv(FILE_PATH, header = False, index=False)
+        # if not os.path.isfile(FILE_PATH):
+        #     dataFrame.to_csv(FILE_PATH, header = False, index=False)
 
-    sniffer = Sniffer()
+        sniffer = Sniffer()
+    except Exception as e:
+        print(e)
+        sys.exit()
+    
